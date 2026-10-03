@@ -16,6 +16,7 @@
 Сеть: свёртки 3x3 (паддинг нулями), плотный слой, один выход tanh.
 """
 import json
+import threading
 
 import numpy as np
 
@@ -93,6 +94,11 @@ class ValueNet:
         items += [layers.Dense(64 * channels, head, rng), layers.ReLU(), layers.Dense(head, 1, rng), layers.Tanh()]
         self.body = layers.Sequential(items)
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop("lock", None)          # замок NetEval в другой процесс не передаётся
+        return state
+
     def forward(self, x):
         return self.body.forward(x)
 
@@ -139,11 +145,18 @@ class ValueNet:
 
 
 class NetEval:
-    """Оценка для поиска: список позиций -> массив оценок сети для сходившего."""
+    """Оценка для поиска: список позиций -> массив оценок сети для сходившего.
+
+    Слои запоминают промежуточные массивы для обучения, поэтому одной сетью из двух потоков
+    сразу считать нельзя (в окне ход сети и «Мысли сети» идут параллельно) - замок на сеть."""
 
     def __init__(self, model, encode):
         self.model = model
         self.encode = encode
+        if not hasattr(model, "lock"):
+            model.lock = threading.Lock()
 
     def __call__(self, positions):
-        return self.model.value(self.encode(positions)).astype(np.float64)
+        x = self.encode(positions)
+        with self.model.lock:
+            return self.model.value(x).astype(np.float64)
