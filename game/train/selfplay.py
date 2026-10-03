@@ -35,6 +35,7 @@ from game.ai import games, models, net
 from game.ai.search import MATE, Searcher
 
 LEVEL_NAMES = {"novice": "новичок", "medium": "средний", "strong": "сильный"}
+SAVE_EVERY_S = 300          # снимок состояния - раз в 5 минут и в конце
 
 PRESETS = {
     "checkers": {
@@ -51,7 +52,7 @@ PRESETS = {
         "net": {"channels": 32, "conv_layers": 2, "head": 64},
         "depth": 1, "lam": 0.7, "gamma": 0.995, "eps_start": 0.15, "eps_end": 0.02,
         "opening": 4, "max_plies": 300, "lr": 1e-3, "lr_end": 2e-4, "batch": 256,
-        "replay": 4.0, "buffer": 300_000, "games_per_task": 2, "eval_every": 1000, "eval_games": 40,
+        "replay": 4.0, "buffer": 150_000, "games_per_task": 2, "eval_every": 500, "eval_games": 20,
     },
 }
 
@@ -189,7 +190,7 @@ class Trainer:
         self.model = net.ValueNet(games.planes(game), rng=np.random.default_rng(seed), **self.cfg["net"])
         self.opt = Adam(self.model.params(), lr=self.cfg["lr"])
         planes = games.planes(game)
-        dtype = np.int8 if game == "checkers" else np.float32
+        dtype = np.int8 if game == "checkers" else np.float16     # 0/1 и счётчик 50 ходов / 100
         self.buf_x = np.zeros((self.cfg["buffer"], 8, 8, planes), dtype)
         self.buf_y = np.zeros(self.cfg["buffer"], np.float32)
         self.filled = 0
@@ -310,6 +311,7 @@ class Trainer:
         next_eval = (self.played // c["eval_every"] + 1) * c["eval_every"]
         self.log(f"обучение {self.game}: сеть {self.model.config}, весов {self.model.count()}, "
                  f"потоков {self.threads}, глубина {c['depth']}, цель {total} партий")
+        last_save = time.time()
         with mp.get_context("spawn").Pool(self.threads, initializer=_init_worker) as pool:
             pending = pool.map_async(selftask_entry, self.tasks(min(round_games, total - self.played)))
             while True:
@@ -347,7 +349,11 @@ class Trainer:
                     line += f"  проверка: случайный {q['vs_random']:.2f}, материал-2 {q['vs_material2']:.2f}"
                     next_eval += c["eval_every"]
                 self.log(line)
-                self.save()
+                # снимок с буфером позиций весит десятки мегабайт: писать его после каждой
+                # пачки (раз в несколько секунд) - десятки гигабайт в час на диск
+                if stop or time.time() - last_save > SAVE_EVERY_S:
+                    self.save()
+                    last_save = time.time()
                 if stop:
                     break
         return self.played >= total
