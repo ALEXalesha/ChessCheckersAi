@@ -26,8 +26,10 @@ def bench(name, perft_fn, pos, depth):
     leaves = perft_fn(pos, depth)
     sec = time.perf_counter() - t
     nodes = count_nodes(perft_fn, pos, depth)
-    print(f"{name}: perft {depth} = {leaves:,} за {sec:.2f} с - {leaves / sec:,.0f} листьев/с, "
-          f"{nodes / sec:,.0f} позиций/с".replace(",", " "))
+    def n(x):
+        return f"{x:,.0f}".replace(",", " ")
+    print(f"{name}: perft {depth} = {n(leaves)} за {sec:.2f} с - {n(leaves / sec)} листьев/с, "
+          f"{n(nodes / sec)} позиций/с")
 
 
 if __name__ == "__main__":
