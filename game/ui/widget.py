@@ -3,6 +3,7 @@
 Окно ему даёт оболочка (aikit.run_standalone или ИИ-Игротека). Тема и язык приходят из
 ctx и меняются на лету по ctx.changed. Файлы - только в ctx.data_dir.
 """
+import gc
 import random
 
 from PySide6.QtCore import QRectF, QSize, Qt, QTimer
@@ -546,6 +547,10 @@ class SettingsPage(QWidget):
 class GameWidget(QWidget):
     def __init__(self, ctx):
         super().__init__()
+        # Всё, что уже создано (Qt, numpy, модели), - в постоянное поколение сборщика мусора:
+        # иначе полный проход сборщика посреди поиска держит GIL и окно замирает (в прогоне
+        # всех тестов ловили паузу 0,67 с).
+        gc.freeze()
         self.ctx = ctx
         self.t = translator(ctx.lang)
         self.settings = st.Settings(SCHEMA, ctx.file("settings.json"))
