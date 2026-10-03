@@ -24,6 +24,12 @@ def selftest(out_path):
         lines.append(f"шашки: perft 6 = {n}, {time.time() - started:.2f} с")
         if n != 37986:
             raise RuntimeError("perft шашек не сошёлся")
+        from game.core import chess
+        started = time.time()
+        n = chess.perft(chess.from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"), 3)
+        lines.append(f"шахматы: perft 3 Kiwipete = {n}, {time.time() - started:.2f} с")
+        if n != 97862:
+            raise RuntimeError("perft шахмат не сошёлся")
         lines.append("ИТОГ: работает")
     except Exception:  # noqa: BLE001 - любая ошибка должна попасть в файл
         lines.append("ИТОГ: ошибка")
