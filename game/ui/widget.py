@@ -5,6 +5,7 @@ ctx и меняются на лету по ctx.changed. Файлы - тольк�
 """
 import gc
 import random
+import sys
 
 from PySide6.QtCore import QRectF, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QKeySequence, QPainter, QShortcut
@@ -551,6 +552,10 @@ class GameWidget(QWidget):
         # иначе полный проход сборщика посреди поиска держит GIL и окно замирает (в прогоне
         # всех тестов ловили паузу 0,67 с).
         gc.freeze()
+        # Поиск идёт в потоке Python и держит GIL; окно рисуется тоже из Python, и каждый
+        # вызов Qt отдаёт и снова ждёт GIL - по умолчанию до 5 мс. Отрисовка доски во время
+        # хода сети растягивалась до 0,1-0,3 с. Интервал 1 мс убирает эти рывки.
+        sys.setswitchinterval(0.001)
         self.ctx = ctx
         self.t = translator(ctx.lang)
         self.settings = st.Settings(SCHEMA, ctx.file("settings.json"))

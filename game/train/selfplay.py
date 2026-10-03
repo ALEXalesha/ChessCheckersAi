@@ -46,7 +46,9 @@ PRESETS = {
     },
     "chess": {
         "games": 20000, "snapshots": {"novice": 1000, "medium": 6000},
-        "net": {"channels": 32, "conv_layers": 3, "head": 64},
+        # две свёртки, а не три, как у шашек: полуход самоигры 25 мс против 34 мс,
+        # а время обучения шахмат ограничено (замер 03.10)
+        "net": {"channels": 32, "conv_layers": 2, "head": 64},
         "depth": 1, "lam": 0.7, "gamma": 0.995, "eps_start": 0.15, "eps_end": 0.02,
         "opening": 4, "max_plies": 300, "lr": 1e-3, "lr_end": 2e-4, "batch": 256,
         "replay": 4.0, "buffer": 300_000, "games_per_task": 2, "eval_every": 1000, "eval_games": 40,
@@ -287,7 +289,9 @@ class Trainer:
         """Короткая проверка для кривой обучения: против случайного и жадного."""
         model = self.model
         res = {}
-        for name, opp in (("vs_random", {"kind": "random"}), ("vs_greedy", {"kind": "greedy"})):
+        # в шашках жадный почти не отличается от случайного (взятие и так обязательно),
+        # поэтому вторая проверка - альфа-бета по материалу на глубину 2
+        for name, opp in (("vs_random", {"kind": "random"}), ("vs_material2", {"kind": "material", "depth": 2})):
             play = partial(games.play_one, game=self.game, subject={"kind": "net", "depth": 1}, opponent=opp,
                            model=model)
             r = tournament.summary(tournament.run(play, self.cfg["eval_games"], seed=self.played, pool=pool))
@@ -340,7 +344,7 @@ class Trainer:
                 if self.played >= next_eval:
                     q = self.quick_eval(pool)
                     self.curve.append({"games": self.played, **q, "minutes": round(self.seconds / 60, 1)})
-                    line += f"  проверка: случайный {q['vs_random']:.2f}, жадный {q['vs_greedy']:.2f}"
+                    line += f"  проверка: случайный {q['vs_random']:.2f}, материал-2 {q['vs_material2']:.2f}"
                     next_eval += c["eval_every"]
                 self.log(line)
                 self.save()

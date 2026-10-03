@@ -132,7 +132,7 @@ def test_window_answers_while_the_network_thinks(qapp, win, monkeypatch):
     gaps = [b - a for a, b in zip(ticks, ticks[1:])]
     # сеть думала заметное время, а таймер окна всё это время тикал почти ровно
     assert ticks[-1] - ticks[0] > 0.5 and len(ticks) > 15
-    assert max(gaps) < 0.3 and sorted(gaps)[len(gaps) // 2] < 0.06
+    assert max(gaps) < 0.15 and sorted(gaps)[len(gaps) // 2] < 0.06
 
 
 def test_closing_stops_the_search_within_two_seconds(qapp, tmp_path, monkeypatch):
