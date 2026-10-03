@@ -38,6 +38,23 @@ SETS = {
          "        if i >= n or board[ray[i]] == 0:"),
         ("сброс счётчика дамок забыт", "    quiet = 0 if (man or caps) else pos.quiet + 1", "    quiet = pos.quiet + 1"),
     ]),
+    "search": ("game/ai/search.py", "tests/test_search.py", [
+        ("оценка ребёнка с чужой точки зрения", "self._child(child, v, depth - 1, -beta, -alpha, ply + 1, path)",
+         "self._child(child, -v, depth - 1, -beta, -alpha, ply + 1, path)"),
+        ("границы таблицы перепутаны", "flag = UPPER if best <= alpha0 else (LOWER if best >= beta else EXACT)",
+         "flag = LOWER if best <= alpha0 else (UPPER if best >= beta else EXACT)"),
+        ("дальний мат лучше ближнего", "\n            return (s + ply * 0.01 if s < 0 else s), pos, []\n        alpha0",
+         "\n            return (s - ply * 0.01 if s < 0 else s), pos, []\n        alpha0"),
+        ("повторение из истории партии не видно", "        if k in path or k in self.history:", "        if k in path:"),
+        ("лист с чужой точки зрения", "            return self._quiesce(child, -value, alpha, beta, ply, 0, path)",
+         "            return self._quiesce(child, value, alpha, beta, ply, 0, path)"),
+        ("лимит времени не действует", "            self.deadline = None if (max_time is None or d <= min_depth) else started + max_time",
+         "            self.deadline = None"),
+        ("флаг остановки не слушается", "            if self.stop_flag is not None and self.stop_flag():", "            if False:"),
+        ("отсечение по beta раньше времени",
+         "                if alpha >= beta:\n                    break\n        finally:\n            path.discard(key)\n        flag",
+         "                if alpha >= beta - 0.05:\n                    break\n        finally:\n            path.discard(key)\n        flag"),
+    ]),
 }
 
 
