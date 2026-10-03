@@ -60,6 +60,16 @@ SETS = {
         ("король ходит под бой", "    ksq = to if piece == side * KING else pos.kings[side]", "    ksq = pos.kings[side]"),
         ("повторение - четыре раза", "        if self.counts.get(pos.key, 0) >= 3:", "        if self.counts.get(pos.key, 0) >= 4:"),
     ]),
+    "selfplay": ("game/train/selfplay.py", "tests/test_selfplay.py", [
+        ("знак листа соперника не меняется", "        sign = 1.0 if -leaf.turn == mover else -1.0", "        sign = 1.0"),
+        ("след не обрывается на случайном ходе", "            if records[t + 1][3]:", "            if False:"),
+        ("исход с чужой стороны", "            g = float(outcome * mover) if outcome is not None else s",
+         "            g = float(outcome) if outcome is not None else s"),
+        ("предел длины считается ничьей", "            g = float(outcome * mover) if outcome is not None else s",
+         "            g = float(outcome * mover) if outcome is not None else 0.0"),
+        ("лямбда наоборот", "                g = gamma * ((1 - lam) * (-s_next) + lam * (-g_next))",
+         "                g = gamma * (lam * (-s_next) + (1 - lam) * (-g_next))"),
+    ]),
     "search": ("game/ai/search.py", "tests/test_search.py", [
         ("оценка ребёнка с чужой точки зрения", "self._child(child, v, depth - 1, -beta, -alpha, ply + 1, path)",
          "self._child(child, -v, depth - 1, -beta, -alpha, ply + 1, path)"),
