@@ -327,3 +327,22 @@ def test_switching_games_drops_old_thoughts(qapp, win):
     win.grab()
     assert wait_until(qapp, lambda: g.play.board.thoughts is not None, 15)
     assert set(g.play.board.thoughts) == set(g.session.legal())
+
+
+@pytest.mark.parametrize("theme_name", ["dark", "light"])
+def test_black_king_crown_is_visible(qapp, theme_name):
+    """Корона чёрной дамки должна отличаться от заливки шашки в обеих темах."""
+    from PySide6.QtCore import QRectF
+    from PySide6.QtGui import QColor, QImage, QPainter
+
+    from aikit import theme
+    from game.ui import pieces
+    pal = theme.palette(theme_name)
+    img = QImage(100, 100, QImage.Format.Format_ARGB32)
+    img.fill(QColor(pal["sq_dark"]))
+    p = QPainter(img)
+    pieces.draw_checker(p, QRectF(0, 0, 100, 100), -2, pal)
+    p.end()
+    fill = QColor(pal["piece_black"])
+    crown = img.pixelColor(50, 44)                    # середина короны
+    assert abs(crown.lightness() - fill.lightness()) > 60

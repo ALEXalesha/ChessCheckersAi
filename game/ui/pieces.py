@@ -155,14 +155,17 @@ def draw_checker(p: QPainter, rect: QRectF, piece: int, colors: dict):
     p.setPen(QPen(edge, 3.0))
     p.setBrush(fill)
     p.drawEllipse(QPointF(50, 49), 38, 38)
+    # кольцо и корона дамки - цветом, который виден на заливке: у чёрных светлым (в светлой
+    # теме контур чёрных тёмный, и корона на чёрной шашке пропадала - кадр 03.10)
+    detail = edge if white else QColor(colors["piece_white"]).darker(112)
     p.setBrush(Qt.BrushStyle.NoBrush)
-    p.setPen(QPen(edge, 2.0))
+    p.setPen(QPen(detail, 2.0))
     p.drawEllipse(QPointF(50, 49), 27, 27)
     if abs(piece) == 2:
-        crown_pen = QPen(edge, 2.6)
+        crown_pen = QPen(detail, 2.6)
         crown_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         p.setPen(crown_pen)
-        p.setBrush(edge)
+        p.setBrush(detail)
         crown = QPolygonF([QPointF(x, y) for x, y in
                            ((32, 58), (30, 38), (40, 48), (50, 34), (60, 48), (70, 38), (68, 58))])
         p.drawPolygon(crown)
