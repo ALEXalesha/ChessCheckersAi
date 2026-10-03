@@ -24,8 +24,12 @@ def main(argv=None):
         from aikit import offscreen
         offscreen.setup(force=True)
     import aikit
+    from PySide6.QtWidgets import QApplication
+
     from game import APP_NAME, GAME_INFO, create_widget
-    return aikit.run_standalone(GAME_INFO, create_widget, APP_NAME)
+    from game.ui.icon import app_icon
+    QApplication.instance() or QApplication(sys.argv)     # иконке нужен живой QApplication
+    return aikit.run_standalone(GAME_INFO, create_widget, APP_NAME, icon=app_icon())
 
 
 if __name__ == "__main__":
