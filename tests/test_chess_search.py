@@ -97,3 +97,31 @@ def test_material_eval_is_from_the_mover_side(fen):
     pos = c.from_fen(fen)
     after = c.play(pos, c.parse_san(pos, "Ra7"))
     assert ca.chess_material([after])[0] > 0.3      # сходили белые, у них ладья
+
+
+@pytest.mark.parametrize("fen, san, value", [
+    ("4k3/8/8/3n4/4P3/8/8/4K3 w - - 0 1", "exd5", 3),         # пешка берёт коня
+    ("4k3/8/2p5/3n4/4P3/8/8/4K3 w - - 0 1", "exd5", 2),       # конь защищён пешкой: 3 - 1
+    ("4k3/8/4p3/3p4/8/8/8/3QK3 w - - 0 1", "Qxd5", -8),       # ферзь за пешку
+    ("3rk3/8/8/3r4/8/8/8/3RK3 w - - 0 1", "Rxd5", 0),         # ладья за ладью
+    ("4k3/8/8/3p4/4K3/8/8/8 w - - 0 1", "Kxd5", 1),           # король берёт незащищённую
+    ("4k3/8/2p5/3p4/4K3/8/8/8 w - - 0 1", None, None),        # под бой королю нельзя - хода нет
+])
+def test_static_exchange(fen, san, value):
+    pos = c.from_fen(fen)
+    names = {c.san(pos, m): m for m in c.legal_moves(pos)}
+    if san is None:
+        assert "Kxd5" not in names
+        return
+    assert ca.see(pos, names[san]) == value
+
+
+def test_quiescence_stays_small_in_a_tactical_position():
+    """Kiwipete с необученной сетью: раньше тихий поиск разрастался на минуты."""
+    import time
+    model = net.ValueNet(net.CHESS_PLANES, rng=np.random.default_rng(0))
+    s = Searcher(ca.CHESS, net.NetEval(model, net.encode_chess))
+    t = time.time()
+    r = s.search(c.from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"), depth=1)
+    assert r.move is not None and time.time() - t < 10
+

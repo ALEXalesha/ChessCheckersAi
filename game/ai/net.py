@@ -49,30 +49,37 @@ def encode_checkers(positions):
 CHESS_PLANES = 18
 
 
+_CH_SQ = np.array([21 + r * 10 + c for r in range(8) for c in range(8)])
+_CH_SQ_FLIP = np.array([21 + (7 - r) * 10 + c for r in range(8) for c in range(8)])
+
+
 def encode_chess(positions):
     """Список позиций -> (B, 8, 8, 18) float32 глазами сходившего."""
     from game.core import chess
     n = len(positions)
-    out = np.zeros((n, 8, 8, CHESS_PLANES), np.float32)
+    boards = np.array([p.board for p in positions], dtype=np.int8).reshape(n, 120)
+    mover = np.array([-p.turn for p in positions], dtype=np.int8)
+    flip = mover == chess.BLACK
+    cells = np.where(flip[:, None], boards[:, _CH_SQ_FLIP], boards[:, _CH_SQ]) * mover[:, None]   # мои > 0
+    out = np.zeros((n, 64, CHESS_PLANES), np.float32)
+    for v in range(1, 7):
+        out[:, :, v - 1] = cells == v
+        out[:, :, 5 + v] = cells == -v
+    out = out.reshape(n, 8, 8, CHESS_PLANES)
     for i, pos in enumerate(positions):
-        mover = -pos.turn
-        flip = mover == chess.BLACK
-        for sq, piece in pos.pieces():
-            r, c = chess.rc(sq)
-            if flip:
-                r = 7 - r
-            mine = (piece > 0) == (mover == chess.WHITE)
-            out[i, r, c, (0 if mine else 6) + abs(piece) - 1] = 1.0
         cr = pos.castling
-        my_k, my_q, op_k, op_q = (chess.WK, chess.WQ, chess.BK, chess.BQ) if not flip else \
-            (chess.BK, chess.BQ, chess.WK, chess.WQ)
-        for plane, bit in zip(range(12, 16), (my_k, my_q, op_k, op_q)):
+        if flip[i]:
+            bits = (chess.BK, chess.BQ, chess.WK, chess.WQ)
+        else:
+            bits = (chess.WK, chess.WQ, chess.BK, chess.BQ)
+        for plane, bit in zip(range(12, 16), bits):
             if cr & bit:
                 out[i, :, :, plane] = 1.0
         if pos.ep is not None:
             r, c = chess.rc(pos.ep)
-            out[i, 7 - r if flip else r, c, 16] = 1.0
-        out[i, :, :, 17] = min(pos.halfmove, 100) / 100.0
+            out[i, 7 - r if flip[i] else r, c, 16] = 1.0
+        if pos.halfmove:
+            out[i, :, :, 17] = min(pos.halfmove, 100) / 100.0
     return out
 
 

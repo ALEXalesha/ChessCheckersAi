@@ -10,6 +10,7 @@ VALUES = {c.PAWN: 1.0, c.KNIGHT: 3.0, c.BISHOP: 3.0, c.ROOK: 5.0, c.QUEEN: 9.0, 
 
 class ChessAdapter:
     name = "chess"
+    qdepth = 4          # тихий поиск шахмат - не глубже 4 полуходов (см. qmoves)
 
     moves = staticmethod(c.legal_moves)
     play = staticmethod(c.play)
@@ -27,11 +28,21 @@ class ChessAdapter:
         return -MATE if c.in_check(pos) else 0.0       # мат или пат
 
     @staticmethod
-    def qmoves(pos):
-        """Тихий поиск: под шахом стоять нельзя - все ответы; иначе взятия и превращения."""
-        if c.in_check(pos):
-            return c.legal_moves(pos), False
-        return c.legal_captures(pos), True
+    def qmoves(pos, qply=0):
+        """Тихий поиск шахмат: превращения в ферзя и взятия, которые по размену не теряют
+        материал (SEE >= 0 на первом полуходе тихого поиска, глубже - только выигрывающие,
+        SEE > 0). Позиция под шахом оценивается как есть: мат видит основной поиск.
+        Без этого отбора тихий поиск со случайной сетью разрастался на минуты: оценки не
+        дают отсечений, а взятий в острой позиции много (Kiwipete - 4 минуты на глубину 2)."""
+        out = []
+        least = 0 if qply == 0 else 1
+        for m in c.legal_captures(pos):
+            if m[2]:
+                if m[2] == c.QUEEN:
+                    out.append(m)
+            elif see(pos, m) >= least:
+                out.append(m)
+        return out, True
 
     @staticmethod
     def noisy(pos, m):
@@ -46,6 +57,68 @@ class ChessAdapter:
 
 
 CHESS = ChessAdapter()
+
+SEE_VALUE = {c.PAWN: 1, c.KNIGHT: 3, c.BISHOP: 3, c.ROOK: 5, c.QUEEN: 9, c.KING: 100}
+
+
+def _least_attacker(b, sq, side):
+    """Самая дешёвая фигура стороны side, бьющая поле sq: (поле, цена) или None."""
+    p = side * c.PAWN
+    for d in ((-9, -11) if side == c.WHITE else (9, 11)):
+        if b[sq + d] == p:
+            return sq + d, 1
+    n = side * c.KNIGHT
+    for d in c.N_STEPS:
+        if b[sq + d] == n:
+            return sq + d, 3
+    best = None
+    for dirs, kinds in ((c.B_DIRS, (c.BISHOP, c.QUEEN)), (c.R_DIRS, (c.ROOK, c.QUEEN))):
+        for d in dirs:
+            t = sq + d
+            while b[t] == 0:
+                t += d
+            q = b[t]
+            if q != c.OFF and q * side > 0 and abs(q) in kinds:
+                v = SEE_VALUE[abs(q)]
+                if best is None or v < best[1]:
+                    best = (t, v)
+    if best is not None:
+        return best
+    k = side * c.KING
+    for d in c.K_STEPS:
+        if b[sq + d] == k:
+            return sq + d, 100
+    return None
+
+
+def see(pos, m):
+    """Размен на поле взятия (static exchange evaluation): сколько материала выиграет ход,
+    если обе стороны дальше бьют на этом поле самой дешёвой фигурой и могут остановиться."""
+    b = list(pos.board)
+    frm, to = m[0], m[1]
+    victim = c.PAWN if m[3] == c.EP else abs(b[to])
+    if m[3] == c.EP:
+        b[to - 10 * pos.turn] = 0
+    gains = [SEE_VALUE.get(victim, 0)]
+    piece_value = SEE_VALUE[abs(b[frm])]
+    b[to] = b[frm]
+    b[frm] = 0
+    side = -pos.turn
+    while True:
+        att = _least_attacker(b, to, side)
+        if att is None:
+            break
+        gains.append(piece_value - gains[-1])
+        piece_value = att[1]
+        b[to] = b[att[0]]
+        b[att[0]] = 0
+        side = -side
+        if piece_value == 100 and _least_attacker(b, to, side) is not None:
+            gains.pop()           # король не может бить под бой
+            break
+    for i in range(len(gains) - 1, 0, -1):
+        gains[i - 1] = -max(-gains[i - 1], gains[i])
+    return gains[0]
 
 
 def material_diff(pos, side):

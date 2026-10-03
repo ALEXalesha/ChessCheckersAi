@@ -8,8 +8,8 @@
     key(pos)            ключ Зобриста
     rule_draw(pos)      ничья по правилу, видная из самой позиции (50 ходов, дамки, материал)
     no_moves_score(pos) оценка позиции без ходов для того, чья очередь (-MATE или 0 - пат)
-    qmoves(pos)         (ходы тихого поиска, можно ли стоять): шашки - обязательные взятия,
-                        шахматы - взятия и превращения, под шахом - все ходы
+    qmoves(pos, qply)   (ходы тихого поиска, можно ли стоять): шашки - обязательные взятия,
+                        шахматы - выгодные взятия и превращения, под шахом - все ходы
     noisy(pos, m)       взятие или превращение - такие ходы идут первыми
     order_key(pos, m)   чем больше, тем раньше среди взятий (MVV-LVA и т. п.)
 
@@ -204,9 +204,9 @@ class Searcher:
         """Тихий поиск: доиграть взятия, чтобы не оценивать позицию посреди размена.
         stand - оценка самой позиции для того, чья очередь."""
         self._check()
-        if not self.quiescence or qply >= QDEPTH:
+        if not self.quiescence or qply >= getattr(self.ad, "qdepth", QDEPTH):
             return stand, pos, []
-        moves, can_stand = self.ad.qmoves(pos)
+        moves, can_stand = self.ad.qmoves(pos, qply)
         if can_stand:
             if stand >= beta or not moves:
                 return stand, pos, []

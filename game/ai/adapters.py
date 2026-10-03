@@ -24,7 +24,7 @@ class CheckersAdapter:
         return -MATE                         # в шашках без ходов - поражение
 
     @staticmethod
-    def qmoves(pos):
+    def qmoves(pos, qply=0):
         """Взятие обязательно: есть взятия - стоять нельзя, их надо доиграть."""
         caps = ck.captures(pos)
         return (caps, False) if caps else ([], True)

@@ -12,7 +12,7 @@ GAMES = ("checkers", "chess")
 
 # Глубина поиска сети на каждом уровне (вместе со снимком обучения) - для окна и паспорта.
 LEVEL_DEPTH = {
-    "checkers": {"novice": 2, "medium": 4, "strong": 6},
+    "checkers": {"novice": 2, "medium": 3, "strong": 4},
     "chess": {"novice": 1, "medium": 2, "strong": 3},
 }
 # В окне сильный уровень ещё и ограничен по времени (spec §2: до 2-3 с на ход).
