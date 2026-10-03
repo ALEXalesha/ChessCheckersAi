@@ -113,26 +113,51 @@ def test_network_moves_first_when_human_is_black(qapp, win):
     assert wait_until(qapp, lambda: len(g.session.game.moves) == 1, 15)
 
 
-def test_window_answers_while_the_network_thinks(qapp, win, monkeypatch):
-    """Поиск в отдельном потоке: таймер окна тикает без провалов, пока сеть думает 2 секунды."""
-    monkeypatch.setitem(games.LEVEL_TIME, "strong", 2.0)
-    monkeypatch.setitem(games.LEVEL_DEPTH["checkers"], "strong", 40)
-    g = win.game
-    g.change("game", "checkers")
-    g.change("mode", "net")
-    g.change("color", "black")
-    g.change("level", "strong")
-    ticks = []
-    timer = QTimer()
-    timer.timeout.connect(lambda: ticks.append(time.perf_counter()))
-    timer.start(20)
-    g.start_game()
-    assert wait_until(qapp, lambda: len(g.session.game.moves) == 1, 20)
-    timer.stop()
+RESPONSIVE_PROBE = r"""
+import json, os, sys, tempfile, time
+sys.path.insert(0, sys.argv[1])
+from aikit import offscreen; offscreen.setup(force=True)
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QApplication
+from aikit.host import make_window
+from game import GAME_INFO, APP_NAME, create_widget
+from game.ai import games
+games.LEVEL_TIME["strong"] = 2.0
+games.LEVEL_DEPTH["checkers"]["strong"] = 40
+app = QApplication([])
+w, ctx = make_window(GAME_INFO, create_widget, APP_NAME, root=tempfile.mkdtemp())
+w.show()
+g = w.game
+g.change("mode", "net"); g.change("color", "black"); g.change("level", "strong")
+ticks = []
+t = QTimer(); t.timeout.connect(lambda: ticks.append(time.perf_counter())); t.start(20)
+t0 = time.perf_counter()
+g.start_game()
+while len(g.session.game.moves) < 1 and time.perf_counter() - t0 < 20:
+    app.processEvents(); time.sleep(0.01)
+t.stop(); w.close()
+print(json.dumps(ticks))
+"""
+
+
+def test_window_answers_while_the_network_thinks():
+    """Поиск в отдельном потоке: таймер окна тикает без провалов, пока сеть думает ~1,5 с.
+
+    Замер - в отдельном процессе с одним окном, как у игрока: в процессе тестов окна прошлых
+    тестов удаляются отложенно, и это само давало провалы до 0,4 с, к игре не относящиеся."""
+    import json
+    import os
+    import subprocess
+    import sys
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    r = subprocess.run([sys.executable, "-c", RESPONSIVE_PROBE, root], capture_output=True, text=True, timeout=90)
+    assert r.returncode == 0, r.stderr[-2000:]
+    ticks = json.loads(r.stdout.strip().splitlines()[-1])
     gaps = [b - a for a, b in zip(ticks, ticks[1:])]
-    # сеть думала заметное время, а таймер окна всё это время тикал почти ровно
+    # сеть думала заметное время, а таймер окна всё это время тикал почти ровно (обычно
+    # самый большой провал 50-75 мс); порог с запасом на загруженный процессор
     assert ticks[-1] - ticks[0] > 0.5 and len(ticks) > 15
-    assert max(gaps) < 0.15 and sorted(gaps)[len(gaps) // 2] < 0.06
+    assert max(gaps) < 0.25 and sorted(gaps)[len(gaps) // 2] < 0.06
 
 
 def test_closing_stops_the_search_within_two_seconds(qapp, tmp_path, monkeypatch):

@@ -553,8 +553,9 @@ class GameWidget(QWidget):
         # всех тестов ловили паузу 0,67 с).
         gc.freeze()
         # Поиск идёт в потоке Python и держит GIL; окно рисуется тоже из Python, и каждый
-        # вызов Qt отдаёт и снова ждёт GIL - по умолчанию до 5 мс. Отрисовка доски во время
-        # хода сети растягивалась до 0,1-0,3 с. Интервал 1 мс убирает эти рывки.
+        # вызов Qt отдаёт и снова ждёт GIL - по умолчанию до 5 мс. С интервалом 1 мс самый
+        # большой провал таймера окна во время хода сети 50-75 мс, без него 80-110 мс
+        # (6 замеров каждого, отдельный процесс, 03.10).
         sys.setswitchinterval(0.001)
         self.ctx = ctx
         self.t = translator(ctx.lang)
@@ -709,13 +710,12 @@ class GameWidget(QWidget):
         self.refresh()
         res = s.result()
         if res is not None:
-            outcome = s.outcome_for_human()
-            if outcome and not s.recorded:
-                self.ctx.stats.record(f"{s.kind}/{s.level}", outcome)
+            if not s.recorded:              # итог - один раз, даже если окно перерисуют снова
                 s.recorded = True
-                self.ctx.sound.play(outcome)
-            elif not outcome:
-                self.ctx.sound.play("draw" if res[0] == 0 else "win")
+                outcome = s.outcome_for_human()
+                if outcome:
+                    self.ctx.stats.record(f"{s.kind}/{s.level}", outcome)
+                self.ctx.sound.play(outcome or ("draw" if res[0] == 0 else "win"))
             return
         if s.net_turn():
             if s.mode == "demo" and self.paused:
