@@ -669,6 +669,8 @@ class GameWidget(QWidget):
         """Для тестов и открытия PGN: готовая партия."""
         self.session = session
         self.paused = False
+        self.thoughts = None          # оценки ходов старой партии к новой не относятся
+        self.best = None
         self.stack.setCurrentWidget(self.play)
         self._invalidate()
         self.after_change()

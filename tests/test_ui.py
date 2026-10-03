@@ -288,3 +288,17 @@ def test_widget_lives_without_a_main_window(qapp, tmp_path):
     w = create_widget(ctx)
     assert isinstance(w, QWidget) and w.window() is w
     assert w.shutdown()
+
+
+def test_switching_games_drops_old_thoughts(qapp, win):
+    """Нашлось кадрами README: «Мысли» партии в шашки рисовались на шахматной доске и
+    роняли отрисовку."""
+    g = win.game
+    g.change("show_thoughts", True)
+    g.start_session(Session("checkers", "two"))
+    assert wait_until(qapp, lambda: g.play.board.thoughts is not None, 15)
+    g.start_session(Session("chess", "two"))
+    assert g.play.board.thoughts is None
+    win.grab()
+    assert wait_until(qapp, lambda: g.play.board.thoughts is not None, 15)
+    assert set(g.play.board.thoughts) == set(g.session.legal())

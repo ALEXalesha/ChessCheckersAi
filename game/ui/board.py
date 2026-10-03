@@ -329,6 +329,8 @@ class BoardWidget(QWidget):
                 continue
             pieces.draw_piece(p, self._piece_rect(self.cell_rect(r, c)), self.kind, piece, col)
         self._draw_targets(p, size)
+        if self.thoughts:
+            self._draw_thought_labels(p, size)
         for rc in self.waypoints:
             p.setPen(QPen(QColor(col["select"]), max(2.0, size * 0.05), Qt.PenStyle.DashLine))
             p.setBrush(Qt.BrushStyle.NoBrush)
@@ -397,10 +399,6 @@ class BoardWidget(QWidget):
                 to = move_to(self.kind, m)
                 if self.selected is not None or to not in shown or v > shown[to]:
                     shown[to] = v
-        f = QFont(self.font())
-        f.setPixelSize(max(9, int(size * 0.2)))
-        f.setBold(True)
-        p.setFont(f)
         for rc, v in shown.items():
             rect = self.cell_rect(*rc)
             color = QColor(*theme.heat(v, name))
@@ -408,9 +406,7 @@ class BoardWidget(QWidget):
             p.setPen(Qt.PenStyle.NoPen)
             p.setBrush(color)
             p.drawRoundedRect(rect.adjusted(size * 0.08, size * 0.08, -size * 0.08, -size * 0.08), 6, 6)
-            p.setPen(QColor(self.colors["text"]))
-            p.drawText(rect.adjusted(0, size * 0.55, 0, 0), Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
-                       score_text(v))
+        self._thought_labels = shown
         for rc, v in per_piece.items():
             color = QColor(*theme.heat(v, name))
             p.setPen(QPen(color, max(2.0, size * 0.07)))
@@ -420,6 +416,23 @@ class BoardWidget(QWidget):
             a = self.cell_rect(*move_from(self.kind, self.best)).center()
             b = self.cell_rect(*move_to(self.kind, self.best)).center()
             _arrow(p, a, b, QColor(self.colors["accent"]), size)
+
+    def _draw_thought_labels(self, p, size):
+        """Числа оценок - поверх фигур (на клетке взятия стоит чужая фигура), на плашке."""
+        f = QFont(self.font())
+        f.setPixelSize(max(9, int(size * 0.19)))
+        f.setBold(True)
+        p.setFont(f)
+        for rc, v in getattr(self, "_thought_labels", {}).items():
+            rect = self.cell_rect(*rc)
+            badge = QRectF(rect.x() + size * 0.14, rect.y() + size * 0.64, size * 0.72, size * 0.27)
+            back = QColor(self.colors["surface"])
+            back.setAlpha(215)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(back)
+            p.drawRoundedRect(badge, 5, 5)
+            p.setPen(QColor(self.colors["text"]))
+            p.drawText(badge, Qt.AlignmentFlag.AlignCenter, score_text(v))
 
     def _draw_promo(self, p, size):
         shade = QColor(0, 0, 0, 120)
