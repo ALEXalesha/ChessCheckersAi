@@ -47,13 +47,15 @@ def summary(kind, lang="ru"):
     pp = models.load_passport(kind)
     n = pp["network"]
     hours = pp["train_seconds"] / 3600
+    threads = pp["threads"] if isinstance(pp["threads"], list) else [pp["threads"]]
+    procs = ", ".join(str(t) for t in threads)
     if lang == "ru":
         return (f"{NAMES[lang][kind]}: сеть {n['planes']} → {n['channels']} × {n['conv_layers']} свёрток 3x3 → "
                 f"{n['head']} → 1, {num(n['parameters'], lang)} весов; {num(pp['games'], lang)} партий самоигры за "
-                f"{hours:.1f} ч".replace(".", ",") + f" на {pp['threads']} процессах.")
+                f"{hours:.1f} ч".replace(".", ",") + f" ({procs} процесса самоигры).")
     return (f"{NAMES[lang][kind]}: network {n['planes']} → {n['channels']} × {n['conv_layers']} 3x3 convolutions → "
             f"{n['head']} → 1, {num(n['parameters'], lang)} weights; {num(pp['games'], lang)} self-play games in "
-            f"{hours:.1f} h on {pp['threads']} processes.")
+            f"{hours:.1f} h ({procs} self-play processes).")
 
 
 if __name__ == "__main__":

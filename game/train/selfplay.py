@@ -184,6 +184,7 @@ class Trainer:
         self.run_dir = Path(run_dir)
         self.out_dir = Path(out_dir) if out_dir else None
         self.threads = threads
+        self.threads_used = []          # процессов самоигры в каждом заходе обучения - для паспорта
         self.seed = seed
         self.log = log or trainlog.TrainLog(self.run_dir / "train.log")
         self.snapshot = self.run_dir / "snapshot.npz"
@@ -215,7 +216,7 @@ class Trainer:
         arrays["buf_y"] = self.buf_y[:self.filled]
         meta = {"game": self.game, "played": self.played, "seconds": self.seconds, "curve": self.curve,
                 "taken": {lv: at for lv, (at, _) in self.taken.items()}, "adam_t": self.opt.t,
-                "head": self.head, "filled": self.filled, "cfg": self.cfg}
+                "head": self.head, "filled": self.filled, "cfg": self.cfg, "threads_used": self.threads_used}
         trainlog.save_snapshot(self.snapshot, arrays, meta)
 
     def resume(self):
@@ -234,6 +235,8 @@ class Trainer:
         self.buf_x[:self.filled] = arrays["buf_x"]
         self.buf_y[:self.filled] = arrays["buf_y"]
         self.played, self.seconds, self.curve = meta["played"], meta["seconds"], meta["curve"]
+        # снимки до 09.10 этого поля не знали: тогда все заходы шли в 4 процессах
+        self.threads_used = list(meta.get("threads_used", [4]))
         for lv, at in meta["taken"].items():
             w = {k[len(f"level.{lv}."):]: v for k, v in arrays.items() if k.startswith(f"level.{lv}.")}
             self.taken[lv] = (at, w)
@@ -308,6 +311,8 @@ class Trainer:
         started = time.time()
         base_seconds = self.seconds
         round_games = self.threads * c["games_per_task"] * 2
+        if not self.threads_used or self.threads_used[-1] != self.threads:
+            self.threads_used.append(self.threads)
         next_eval = (self.played // c["eval_every"] + 1) * c["eval_every"]
         self.log(f"обучение {self.game}: сеть {self.model.config}, весов {self.model.count()}, "
                  f"потоков {self.threads}, глубина {c['depth']}, цель {total} партий")
@@ -406,7 +411,7 @@ def make_passport(trainer, nets):
                    "replay": c["replay"], "buffer": c["buffer"], "seed": trainer.seed},
         "games": trainer.played,
         "train_seconds": round(trainer.seconds, 1),
-        "threads": trainer.threads,
+        "threads": trainer.threads_used or [trainer.threads],
         "curve": trainer.curve,
         "checks_rules": {"games": None, "seed": CHECK_SEED[trainer.game],
                          "opening_random_plies": list(games.OPENING[trainer.game]),

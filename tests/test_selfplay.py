@@ -72,6 +72,7 @@ def test_snapshot_and_resume(tmp_path):
     for k in w:
         np.testing.assert_array_equal(t2.model.arrays()[k], w[k])
     assert set(t2.taken) == {"novice", "medium"}
+    assert t2.threads_used == [2]                  # для паспорта: сколько процессов играло
     assert "продолжаю со снимка" in (tmp_path / "run" / "train.log").read_text(encoding="utf-8")
 
 

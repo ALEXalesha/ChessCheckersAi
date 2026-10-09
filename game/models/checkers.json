@@ -27,7 +27,9 @@
  },
  "games": 30000,
  "train_seconds": 9641.3,
- "threads": 3,
+ "threads": [
+  4
+ ],
  "curve": [
   {
    "games": 2016,
