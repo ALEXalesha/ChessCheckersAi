@@ -1,0 +1,259 @@
+{
+ "game": "checkers",
+ "network": {
+  "planes": 4,
+  "channels": 32,
+  "conv_layers": 3,
+  "head": 64,
+  "parameters": 150881,
+  "input": "плоскости 8x8 глазами сходившего",
+  "output": "tanh, исход для сходившего"
+ },
+ "method": {
+  "targets": "TD-Leaf(λ): лист главной линии поиска, λ-возврат по оценкам поиска и исходу",
+  "search_depth": 2,
+  "lambda": 0.7,
+  "gamma": 0.99,
+  "eps_start": 0.15,
+  "eps_end": 0.02,
+  "random_opening_plies": 2,
+  "max_plies": 240,
+  "lr": 0.001,
+  "lr_end": 0.0002,
+  "batch": 256,
+  "replay": 4.0,
+  "buffer": 300000,
+  "seed": 0
+ },
+ "games": 30000,
+ "train_seconds": 9641.3,
+ "threads": 3,
+ "curve": [
+  {
+   "games": 2016,
+   "vs_random": 0.45,
+   "vs_greedy": 0.45,
+   "minutes": 6.2
+  },
+  {
+   "games": 4000,
+   "vs_random": 0.95,
+   "vs_greedy": 0.95,
+   "minutes": 13.0
+  },
+  {
+   "games": 6016,
+   "vs_random": 1.0,
+   "vs_greedy": 1.0,
+   "minutes": 20.2
+  },
+  {
+   "games": 8000,
+   "vs_random": 1.0,
+   "vs_greedy": 1.0,
+   "minutes": 29.4
+  },
+  {
+   "games": 10016,
+   "vs_random": 1.0,
+   "vs_greedy": 1.0,
+   "minutes": 38.7
+  },
+  {
+   "games": 12000,
+   "vs_random": 1.0,
+   "vs_greedy": 1.0,
+   "minutes": 48.6
+  },
+  {
+   "games": 14016,
+   "vs_random": 1.0,
+   "vs_greedy": 1.0,
+   "minutes": 58.4
+  },
+  {
+   "games": 16000,
+   "vs_random": 1.0,
+   "vs_greedy": 1.0,
+   "minutes": 68.6
+  },
+  {
+   "games": 18016,
+   "vs_random": 1.0,
+   "vs_greedy": 1.0,
+   "minutes": 80.4
+  },
+  {
+   "games": 20000,
+   "vs_random": 1.0,
+   "vs_greedy": 1.0,
+   "minutes": 92.5
+  },
+  {
+   "games": 22016,
+   "vs_random": 1.0,
+   "vs_greedy": 1.0,
+   "minutes": 106.5
+  },
+  {
+   "games": 24000,
+   "vs_random": 1.0,
+   "vs_material2": 0.6875,
+   "minutes": 122.9
+  },
+  {
+   "games": 26016,
+   "vs_random": 1.0,
+   "vs_material2": 0.6875,
+   "minutes": 138.3
+  },
+  {
+   "games": 28000,
+   "vs_random": 1.0,
+   "vs_material2": 0.7,
+   "minutes": 148.9
+  },
+  {
+   "games": 30000,
+   "vs_random": 1.0,
+   "vs_material2": 0.7875,
+   "minutes": 160.7
+  }
+ ],
+ "checks_rules": {
+  "games": 200,
+  "seed": 6001,
+  "opening_random_plies": [
+   2,
+   4
+  ],
+  "max_plies": 300,
+  "colors": "чётные партии сеть начинает белыми, нечётные - чёрными",
+  "per_game_seed": "numpy.random.default_rng([seed, номер партии])"
+ },
+ "levels": [
+  {
+   "key": "novice",
+   "name": "новичок",
+   "games": 2016,
+   "depth": 2,
+   "checks": {
+    "vs_random": {
+     "games": 200,
+     "wins": 121,
+     "draws": 1,
+     "losses": 78,
+     "score": 0.6075,
+     "results": "WLWWWWWWLWWLWWWWLWWWLWWWWWWLWLLWLWLWLLWWLWLWWLLLLLLWWWWLLWLLLWWWWLWWLWWWWWLWWWWWLLLWWLWWWWLLLWWWLLLWWWLLWWWLLLWWWWWWWLLLWLLLWLLLLWLWWWWWWLLWWWWWWWWWWLWWLWLWWLLWWWWLLWLLWWLWLWWWLWLLWWWWWLLLLWLWWWLWLWLD"
+    },
+    "vs_greedy": {
+     "games": 200,
+     "wins": 122,
+     "draws": 1,
+     "losses": 77,
+     "score": 0.6125,
+     "results": "WLWWWWWWLWWLWWWWLWWWLWWWWWWLWLWWLWLWLLWWLWLWWLLLLLLWWWWLLWLLLWWWWLWWLWWWWWLWWWWWLLLWWLWWWWLLLWWWLLLWWWLLWWWLLLWWWWWWWLLLWLLLWLLLLWLWWWWWWLLWWWWWWWWWWLWWLWLWWLLLWWWLLWLLWWLWLWWWLWLWWWWWWLLLLWWWWWLWLLLD"
+    },
+    "vs_material4": {
+     "games": 200,
+     "wins": 1,
+     "draws": 1,
+     "losses": 198,
+     "score": 0.0075,
+     "results": "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLDLLLLLLLLLLLLLLLLLLLLLLLWLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL"
+    },
+    "vs_material6": {
+     "games": 200,
+     "wins": 0,
+     "draws": 0,
+     "losses": 200,
+     "score": 0.0,
+     "results": "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL"
+    }
+   },
+   "check_seconds": 239.3
+  },
+  {
+   "key": "medium",
+   "name": "средний",
+   "games": 12000,
+   "depth": 3,
+   "checks": {
+    "vs_random": {
+     "games": 200,
+     "wins": 200,
+     "draws": 0,
+     "losses": 0,
+     "score": 1.0,
+     "results": "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
+    },
+    "vs_greedy": {
+     "games": 200,
+     "wins": 200,
+     "draws": 0,
+     "losses": 0,
+     "score": 1.0,
+     "results": "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
+    },
+    "vs_material4": {
+     "games": 200,
+     "wins": 128,
+     "draws": 25,
+     "losses": 47,
+     "score": 0.7025,
+     "results": "WLWWWDLWDLDWWWLLLWWWWDDWWWLWWWLWDLWLWDWDLWWWWWLWWWDWWWDLDLDDWLLWWWWLLWWDWLWWWWWLWLLWWWWLWWLLWLDWWLWWWLWWWWWWWWWDWWDWWWWLWWLWLDLWWWLWDWWWWWWWWWWLLWWLWDWWLDLWLWWWWWWDWWWLWDLWWWWWLWLLLDLWDWWWWLWWWWWWWWWW"
+    },
+    "vs_material6": {
+     "games": 200,
+     "wins": 85,
+     "draws": 30,
+     "losses": 85,
+     "score": 0.5,
+     "results": "LLWWWLLWLLLWWLDDLLLLLLWWWDLWWLWLWLWLLLWDDWWLWLDDDWDWWWLLWLLLWLDLDWDLLLLDWLWLDWWWWLDDWWWLWWLLLLDWWLWWWLWWWLWDWWLLDWLDWWWLWDLLWLLLLWLWLLDWWWWLWLWLLWWLLLDWLLLLLWLLDWLLWWWLWLLDDWDWLWDLLDLWLWWWWLLDWWWWWWWL"
+    }
+   },
+   "check_seconds": 1168.2
+  },
+  {
+   "key": "strong",
+   "name": "сильный",
+   "games": 30000,
+   "depth": 4,
+   "checks": {
+    "vs_random": {
+     "games": 200,
+     "wins": 200,
+     "draws": 0,
+     "losses": 0,
+     "score": 1.0,
+     "results": "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
+    },
+    "vs_greedy": {
+     "games": 200,
+     "wins": 200,
+     "draws": 0,
+     "losses": 0,
+     "score": 1.0,
+     "results": "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
+    },
+    "vs_material4": {
+     "games": 200,
+     "wins": 178,
+     "draws": 13,
+     "losses": 9,
+     "score": 0.9225,
+     "results": "DWWWLWDWWWWWDWWWLDWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWDWWWWWWDWWWWWWWWWWWDWWWWDWWDLWWWWWWWWLWWWWWLWWWWWWWWWDWWWLWWWWWWWDWWWWWLWWWWLWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWDWWWWWWDWWWWWWWWWWWLWWWWWWWWWWWWWWWWW"
+    },
+    "vs_material6": {
+     "games": 200,
+     "wins": 157,
+     "draws": 18,
+     "losses": 25,
+     "score": 0.83,
+     "results": "WWWWDWDWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWDWWDWLWWWWWWWWWWDWWWLWWWWWWDWWWWWLWLWWWWDWLLLWWWLWDWLLLWLDWWLWWWWWWWWDWWWWDWWWWWLDWWWWWLLWWWLDWWLWWWWWWWWWWWWWWWWLWWWLWWWWLWWDWWWDWLLWWWDWWWWWWWLWWWWDWLWWWWWWWWWD"
+    }
+   },
+   "check_seconds": 2848.4
+  }
+ ]
+}
