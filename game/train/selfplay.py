@@ -363,7 +363,7 @@ class Trainer:
                     break
         return self.played >= total
 
-    def finish(self, eval_games=200, levels_out=True):
+    def finish(self, eval_games=100, levels_out=True, minutes=None):
         """Уровни: снимки + конец обучения. Проверки против ботов, модели и паспорт в out_dir."""
         import multiprocessing as mp
         if "strong" not in self.taken:
@@ -377,17 +377,9 @@ class Trainer:
         if levels_out and self.out_dir is not None:
             models.save_levels(models.model_path(self.game, self.out_dir), nets)
         passport = make_passport(self, nets)
-        with mp.get_context("spawn").Pool(self.threads, initializer=_init_worker) as pool:
-            for entry in passport["levels"]:
-                t0 = time.time()
-                entry["checks"] = evaluate_level(self.game, nets[entry["key"]], entry["key"],
-                                                 games.CHECKS[self.game], eval_games, CHECK_SEED[self.game], pool=pool)
-                entry["check_seconds"] = round(time.time() - t0, 1)
-                self.log(f"{entry['name']}: " + ", ".join(
-                    f"{k} {v['wins']}/{v['draws']}/{v['losses']}" for k, v in entry["checks"].items())
-                    + f"  ({entry['check_seconds']:.0f} с)")
-                write_passport(self.game, passport, self.out_dir)
-        return passport
+        write_passport(self.game, passport, self.out_dir)
+        return run_passport(self.game, self.out_dir, self.threads, base=eval_games, log=self.log, nets=nets,
+                            passport=passport, minutes=minutes)
 
 
 CHECK_SEED = {"checkers": 6001, "chess": 7001}
@@ -426,29 +418,88 @@ def make_passport(trainer, nets):
 def write_passport(game, passport, out_dir):
     if out_dir is None:
         return
-    for lv in passport["levels"]:
-        if lv["checks"]:
-            passport["checks_rules"]["games"] = next(iter(lv["checks"].values()))["games"]
+    games_n = [c["games"] for lv in passport["levels"] for c in lv["checks"].values()]
+    passport["checks_rules"]["games"] = min(games_n) if games_n else None
+    passport["checks_rules"]["games_max"] = max(games_n) if games_n else None
     path = models.passport_path(game, out_dir)
     Path(path).write_text(json.dumps(passport, ensure_ascii=False, indent=1), encoding="utf-8", newline="\n")
 
 
-def recheck(game, out_dir, threads=4, eval_games=200, log=print, levels=None):
-    """Заново проверить сохранённые уровни и переписать итоги в паспорте - без обучения."""
+def run_passport(game, out_dir, threads=2, base=100, step=100, cap=300, chunk=10, minutes=None, log=print,
+                 nets=None, passport=None):
+    """Проверки паспорта с продолжением: каждая пара (уровень, соперник) доигрывается до base
+    партий кусками по chunk, паспорт пишется после каждого куска - прерванный подсчёт идёт
+    дальше с места. Партия i всегда со своим зерном, поэтому дописанные партии - те же, что
+    были бы при подсчёте сразу.
+
+    Потом уточнение (решение Алексея 10.10): если у соседних уровней против одного соперника
+    разница очков в пределах погрешности (95%), обоим добавляется step партий, пока разница
+    не станет заметной или не наберётся cap. Пары, где оба уровня всё выиграли (или всё
+    проиграли), не уточняются - там больше партий ничего не покажут.
+    Возвращает паспорт; если вышло время (minutes) - паспорт с недосчитанными парами."""
     import multiprocessing as mp
-    passport = models.load_passport(game, out_dir)
-    with mp.get_context("spawn").Pool(threads, initializer=_init_worker) as pool:
-        for entry in passport["levels"]:
-            if levels and entry["key"] not in levels:
-                continue
-            model = models.load_level(models.model_path(game, out_dir), entry["key"])
+    deadline = None if minutes is None else time.time() + minutes * 60
+    passport = passport or models.load_passport(game, out_dir)
+    if nets is None:
+        nets = {lv["key"]: models.load_level(models.model_path(game, out_dir), lv["key"]) for lv in passport["levels"]}
+    seed = CHECK_SEED[game]
+    checks = games.CHECKS[game]
+    by_key = {lv["key"]: lv for lv in passport["levels"]}
+    for lv in passport["levels"]:                    # старые паспорта - без ci95
+        for name, c in list(lv["checks"].items()):
+            lv["checks"][name] = tournament.summary(c["results"])
+
+    def fill(pool, level, name, target):
+        lv = by_key[level]
+        opponent = dict(checks)[name]
+        have = lv["checks"].get(name, {"results": ""})["results"]
+        while len(have) < target:
+            if deadline is not None and time.time() > deadline:
+                return False
+            idx = list(range(len(have), min(target, len(have) + chunk)))
+            play = partial(games.play_one, game=game,
+                           subject={"kind": "net", "level": level, "depth": lv["depth"]},
+                           opponent=opponent, model=nets[level])
             t0 = time.time()
-            entry["checks"] = evaluate_level(game, model, entry["key"], games.CHECKS[game], eval_games,
-                                             CHECK_SEED[game], pool=pool)
-            entry["check_seconds"] = round(time.time() - t0, 1)
-            log(f"{entry['name']}: " + ", ".join(f"{k} {v['wins']}/{v['draws']}/{v['losses']}"
-                                                 for k, v in entry["checks"].items()))
+            have += tournament.run(play, None, seed, indices=idx, pool=pool)
+            lv["checks"][name] = tournament.summary(have)
+            lv["check_seconds"] = round(lv.get("check_seconds", 0) + time.time() - t0, 1)
             write_passport(game, passport, out_dir)
+        return True
+
+    order = [lv["key"] for lv in passport["levels"]]
+    with mp.get_context("spawn").Pool(threads, initializer=_init_worker) as pool:
+        for level in order:
+            for name, _ in checks:
+                if not fill(pool, level, name, base):
+                    log("время вышло, паспорт досчитается следующим запуском")
+                    return passport
+            c = by_key[level]["checks"]
+            log(f"{LEVEL_NAMES[level]}: " + ", ".join(
+                f"{k} {v['wins']}/{v['draws']}/{v['losses']} ({v['score']:.2f}±{v['ci95']:.2f})" for k, v in c.items()))
+        changed = True
+        while changed:
+            changed = False
+            for name, _ in checks:
+                for a, b in zip(order, order[1:]):
+                    ra = by_key[a]["checks"][name]["results"]
+                    rb = by_key[b]["checks"][name]["results"]
+                    if tournament.different(ra, rb) or tournament.saturated(ra, rb):
+                        continue
+                    target = max(len(ra), len(rb)) + step
+                    if target > cap:
+                        continue
+                    log(f"{name}: {a} и {b} в пределах погрешности - по {target} партий")
+                    for lv in (a, b):
+                        if not fill(pool, lv, name, target):
+                            log("время вышло, паспорт досчитается следующим запуском")
+                            return passport
+                    changed = True
+    passport["checks_rules"]["refine"] = {"base": base, "step": step, "cap": cap,
+                                          "rule": "соседние уровни против одного соперника: разница очков "
+                                                  "больше 1.96 * sqrt(se1^2 + se2^2), иначе +step партий обоим"}
+    write_passport(game, passport, out_dir)
+    log("паспорт готов")
     return passport
 
 
@@ -462,14 +513,20 @@ def main(argv=None):
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--run", help="папка журнала и снимков (по умолчанию %%LOCALAPPDATA%%\\ChessCheckersAi\\runs)")
     ap.add_argument("--out", default=models.models_dir(), help="куда положить модели и паспорт")
-    ap.add_argument("--eval-games", type=int, default=200)
+    ap.add_argument("--eval-games", type=int, default=100, help="партий на пару уровень-соперник (до уточнения)")
     ap.add_argument("--recheck", action="store_true", help="не учить, а заново проверить уровни в --out")
+    ap.add_argument("--passport", action="store_true",
+                    help="досчитать проверки паспорта (с места, с уточнением пар в пределах погрешности)")
     ap.add_argument("--no-finish", action="store_true", help="не проверять и не сохранять модели в конце")
     ap.add_argument("--set", action="append", default=[], metavar="КЛЮЧ=ЗНАЧЕНИЕ",
                     help="поменять настройку пресета, например depth=3")
     args = ap.parse_args(argv)
     if args.recheck:
         recheck(args.game, args.out, args.threads, args.eval_games)
+        return 0
+    if args.passport:
+        run_passport(args.game, args.out, args.threads, base=args.eval_games, minutes=args.minutes,
+                     log=trainlog.TrainLog(Path(args.run or default_run_dir(args.game)) / "passport.log"))
         return 0
     overrides = {}
     for item in args.set:
@@ -481,7 +538,7 @@ def main(argv=None):
     total = args.games or trainer.cfg["games"]
     done = trainer.played >= total or trainer.run(total=total, stop_after=args.minutes * 60 if args.minutes else None)
     if done and not args.no_finish:
-        trainer.finish(args.eval_games)
+        trainer.finish(args.eval_games, minutes=args.minutes)
         trainer.log("готово")
     return 0
 

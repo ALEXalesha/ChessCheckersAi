@@ -32,3 +32,21 @@ def test_summary_counts():
 def test_bad_result_is_an_error():
     with pytest.raises(ValueError):
         tournament.run(lambda i, rng, f: "победа", 1, seed=0)
+
+
+def test_ci95_shrinks_with_more_games_and_uses_rule_of_three_for_identical_results():
+    assert tournament.ci95("W" * 50) == 3 / 50
+    small = tournament.ci95("WDL" * 10)
+    big = tournament.ci95("WDL" * 40)
+    assert big < small and abs(small / big - 2.0) < 0.1     # в 4 раза больше партий - вдвое уже
+
+
+def test_ci95_value_for_a_coin():
+    # 100 партий, половина побед, половина поражений: 1.96 * sqrt(0.25 * 100/99 / 100) ~ 0.0985
+    assert abs(tournament.ci95("WL" * 50) - 0.0985) < 0.001
+
+
+def test_different_and_saturated():
+    assert tournament.different("W" * 90 + "L" * 10, "W" * 50 + "L" * 50)
+    assert not tournament.different("W" * 6 + "L" * 4, "W" * 5 + "L" * 5)
+    assert tournament.saturated("WWW", "WW") and not tournament.saturated("WWD", "WW")

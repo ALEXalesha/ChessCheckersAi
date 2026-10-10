@@ -38,7 +38,14 @@ def table(kind, lang="ru"):
         cells = [t[lv["key"]], num(lv["games"], lang), str(lv["depth"])]
         for c in checks:
             r = lv["checks"].get(c)
-            cells.append(f"{r['wins']} / {r['draws']} / {r['losses']}" if r else "-")
+            if r:
+                score = f"{r['score']:.2f} ± {r['ci95']:.2f}"
+                if lang == "ru":
+                    score = score.replace(".", ",")
+                extra = f", {r['games']}" if r["games"] != pp["checks_rules"]["games"] else ""
+                cells.append(f"{r['wins']} / {r['draws']} / {r['losses']} ({score}{extra})")
+            else:
+                cells.append("-")
         lines.append("| " + " | ".join(cells) + " |")
     return "\n".join(lines)
 

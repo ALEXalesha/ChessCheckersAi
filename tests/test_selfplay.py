@@ -107,3 +107,34 @@ def test_short_training_learns_that_material_matters(tmp_path):
     t.run(total=300)
     after = corr()
     assert abs(before) < 0.3 and after > 0.5
+
+
+def test_passport_resumes_and_refines_close_pairs(tmp_path, monkeypatch):
+    """Подсчёт паспорта прерывается и продолжается с места; пары соседних уровней в пределах
+    погрешности дополняются партиями (решение Алексея 10.10), партии - те же, что при подсчёте сразу."""
+    from functools import partial
+
+    from aikit import tournament
+    from game.ai import games, models
+    monkeypatch.setitem(games.CHECKS, "checkers", [("vs_random", {"kind": "random"})])
+    monkeypatch.setitem(games.LEVEL_DEPTH, "checkers", {"novice": 1, "medium": 1, "strong": 1})
+    t = selfplay.Trainer("checkers", tmp_path / "run", tmp_path / "out", threads=2, seed=3, **TINY)
+    t.log.echo = False
+    t.run(total=24)
+    pp = t.finish(eval_games=4, minutes=0)            # время вышло сразу: модели есть, проверок нет
+    assert models.has_model("checkers", tmp_path / "out")
+    assert all(not lv["checks"] for lv in pp["levels"])
+    pp = selfplay.run_passport("checkers", tmp_path / "out", threads=2, base=4, step=4, cap=8, chunk=3,
+                               log=lambda *_: None)
+    for lv in pp["levels"]:
+        c = lv["checks"]["vs_random"]
+        assert c["games"] in (4, 8) and c["games"] == len(c["results"])
+        model = models.load_level(models.model_path("checkers", tmp_path / "out"), lv["key"])
+        play = partial(games.play_one, game="checkers", subject={"kind": "net", "level": lv["key"], "depth": 1},
+                       opponent={"kind": "random"}, model=model)
+        assert tournament.run(play, c["games"], selfplay.CHECK_SEED["checkers"]) == c["results"]
+    keys = [lv["key"] for lv in pp["levels"]]
+    res = {lv["key"]: lv["checks"]["vs_random"]["results"] for lv in pp["levels"]}
+    for a, b in zip(keys, keys[1:]):
+        if len(res[a]) == 4 and len(res[b]) == 4:
+            assert tournament.different(res[a], res[b]) or tournament.saturated(res[a], res[b])

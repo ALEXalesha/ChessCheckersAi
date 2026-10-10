@@ -66,8 +66,9 @@ def test_passport_is_complete_and_consistent(kind, pp):
         assert lv["depth"] == games.LEVEL_DEPTH[kind][lv["key"]]
         assert set(lv["checks"]) == {name for name, _ in games.CHECKS[kind]}
         for c in lv["checks"].values():
-            assert c["games"] == len(c["results"]) == pp["checks_rules"]["games"]
+            assert c["games"] == len(c["results"]) >= pp["checks_rules"]["games"]
             assert (c["wins"], c["draws"], c["losses"]) == tuple(c["results"].count(x) for x in "WDL")
+            assert c["ci95"] == tournament.summary(c["results"])["ci95"]
     assert pp["checks_rules"]["seed"] == selfplay.CHECK_SEED[kind]
     games_at = [lv["games"] for lv in pp["levels"]]
     assert games_at == sorted(games_at)            # новичок - раньше, сильный - конец обучения
